@@ -31,6 +31,7 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 
 func apiHandler(w http.ResponseWriter, r *http.Request) {
 	// set proper header
+	// TODO: use some sort of pre-hook to set those
 	w.Header().Set("Content-Type", "application/json")
 
 	action := strings.Split(r.URL.Path, "/")[2]
@@ -42,12 +43,12 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 	if action == "downloader" {
-		d := downloader.NewDownloader(downloader.GetPage)
-		pages := d.Download(params.Urls)
+		downloader := downloader.New()
+		downloader.Download(params.Urls)
 
 		// Try out the json encoder
 		// json.NewEncoder(w).Encode(&pages)
-		jData, _ := json.Marshal(pages)
+		jData, _ := json.Marshal(downloader.Pages)
 		w.Write(jData)
 	} else if action == "parallel_downloader" {
 		fmt.Println("To be implemented...")

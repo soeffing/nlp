@@ -1,37 +1,51 @@
 package downloader
 
 import (
-	// "fmt"
-	// "container/list"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
-func mockSuccessGetPage(url string) Page {
-	var page Page
-	return page
-}
-
 func TestDownloaderSingleSuccess(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text")
+		fmt.Fprintln(w, `{"fake text"}`)
+	}))
+
+	defer ts.Close()
+
 	var urls []string
-	urls = append(urls, "https://blog.golang.org/go-maps-in-action")
-	d := NewDownloader(mockSuccessGetPage)
-	pages := d.Download(urls)
+	urls = append(urls, ts.URL)
+
+	downloader := New()
+	downloader.Download(urls)
+
 	expected := 1
-	actual := len(pages)
+	actual := len(downloader.Pages)
 	if expected != actual {
-		t.Fatalf("Downloader does not return a list with pages")
+		t.Fatalf("Downloader does not return 1 page when given 1 URL")
 	}
 }
 
 func TestDownloaderDoubleSuccess(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text")
+		fmt.Fprintln(w, `{"fake text"}`)
+	}))
+
+	defer ts.Close()
+
 	var urls []string
-	urls = append(urls, "https://blog.golang.org/go-maps-in-action")
-	urls = append(urls, "https://blog.golang.org/go-maps-in-action")
-	d := NewDownloader(mockSuccessGetPage)
-	pages := d.Download(urls)
+	urls = append(urls, ts.URL)
+	urls = append(urls, ts.URL)
+
+	downloader := New()
+	downloader.Download(urls)
+
 	expected := 2
-	actual := len(pages)
+	actual := len(downloader.Pages)
 	if expected != actual {
-		t.Fatalf("Downloader does not return two pages in the list when passed in two urls")
+		t.Fatalf("Downloader does not return 2 Pages when given 2 URLs")
 	}
 }

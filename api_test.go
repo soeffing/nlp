@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"encoding/json"
+	"fmt"
 	"github.com/soeffing/nlp/downloader"
 	"io/ioutil"
 	"net/http"
@@ -120,5 +121,52 @@ func TestApiHandlerResponse(t *testing.T) {
 
 	if expected != actual {
 		t.Fatalf("Downloader does not return pages")
+	}
+}
+
+func TestApiHandlerResponseWithHTTPMock(t *testing.T) {
+	// Setup the server
+	handler := &APIHTTPHandler{}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	// Setup the
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text")
+		fmt.Fprint(w, "fake text")
+	}))
+
+	defer ts.Close()
+
+	var urls []string
+	urls = append(urls, ts.URL)
+
+	params := apiRequestParams{urls, "action"}
+
+	buffer := new(bytes.Buffer)
+	json.NewEncoder(buffer).Encode(params)
+	res, _ := http.Post(server.URL+"/api/downloader", "application/json; charset=utf-8", buffer)
+	defer res.Body.Close()
+
+	var pages []downloader.Page
+	data, _ := ioutil.ReadAll(res.Body)
+
+	jsonErr := json.Unmarshal(data, &pages)
+	if jsonErr != nil {
+		t.Fatal(jsonErr)
+	}
+
+	// Double check if http mock is actually working
+	expectedContent := "fake text"
+	actualContent := pages[0].Content
+	if strings.Compare(expectedContent, actualContent) != 0 {
+		t.Fatalf("Http mock not working")
+	}
+
+	expected := 1
+	actual := len(pages)
+
+	if expected != actual {
+		t.Fatalf("Downloader API endpoint does not return pages")
 	}
 }

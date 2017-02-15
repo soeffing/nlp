@@ -6,11 +6,29 @@ import (
 	"net/http"
 )
 
+// Downloader holds all the pages the entire download process
+type Downloader struct {
+	Pages []Page
+}
+
+// Getter interface
+type Getter interface {
+	GetPage(string) Page
+}
+
 // Page holds data for download page objects
 type Page struct {
 	URL     string
 	Content string
 	Error   error
+}
+
+// Download takes array of urls and downloads them
+func (d *Downloader) Download(urls []string) []Page {
+	for _, url := range urls {
+		d.Pages = append(d.Pages, GetPage(url))
+	}
+	return d.Pages
 }
 
 // GetPage fetches page contents and populates a Page struct
@@ -38,24 +56,7 @@ func GetPage(url string) Page {
 	return page
 }
 
-// PageGetter user-defined function and defines the functions signatures (return values & arguments)
-type PageGetter func(url string) Page
-
-// Downloader type with member get_page
-type Downloader struct {
-	getPage PageGetter
-}
-
-// NewDownloader returns a Downloader struct with a getPage member that point to the PageGetter function
-func NewDownloader(pg PageGetter) *Downloader {
-	return &Downloader{getPage: pg}
-}
-
-// Download downloads all the pages
-func (d *Downloader) Download(urls []string) []Page {
-	var pageContents []Page
-	for _, url := range urls {
-		pageContents = append(pageContents, d.getPage(url))
-	}
-	return pageContents
+// New creates a new Downloader instance
+func New() *Downloader {
+	return &Downloader{}
 }

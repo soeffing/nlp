@@ -2,7 +2,6 @@ package api
 
 import (
 	"bytes"
-	"container/list"
 	"encoding/json"
 	"fmt"
 	"github.com/soeffing/nlp/downloader"
@@ -13,19 +12,15 @@ import (
 	"testing"
 )
 
-type APIResponse struct {
-	pages list.List
-}
-
 type StaticHTTPHandler struct{}
-type APIHTTPHandler struct{}
+type DownloadHTTPHandler struct{}
 
 func (h *StaticHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	staticHandler(w, r)
 }
 
-func (h *APIHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	apiHandler(w, r)
+func (h *DownloadHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	downloadHandler(w, r)
 }
 
 // Helper function to check for content in body
@@ -69,14 +64,14 @@ func TestStaticHandlerTemplateOutput(t *testing.T) {
 	AssertSee(t, string(body), "Hello, uli")
 }
 
-func TestApiHandlerAvailability(t *testing.T) {
-	handler := &APIHTTPHandler{}
+func TestDownloadHandlerAvailability(t *testing.T) {
+	handler := &DownloadHTTPHandler{}
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
 	var urls []string
 	urls = append(urls, "https://blog.golang.org/go-maps-in-action")
-	params := apiRequestParams{urls, "action"}
+	params := downloadRequestParams{urls}
 	buffer := new(bytes.Buffer)
 	json.NewEncoder(buffer).Encode(params)
 	res, err := http.Post(server.URL+"/api/downloader", "application/json; charset=utf-8", buffer)
@@ -92,15 +87,15 @@ func TestApiHandlerAvailability(t *testing.T) {
 	}
 }
 
-func TestApiHandlerResponse(t *testing.T) {
-	handler := &APIHTTPHandler{}
+func TestDownloadHandlerResponse(t *testing.T) {
+	handler := &DownloadHTTPHandler{}
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
 	var urls []string
 	urls = append(urls, "https://blog.golang.org/go-maps-in-action")
 
-	params := apiRequestParams{urls, "action"}
+	params := downloadRequestParams{urls}
 
 	buffer := new(bytes.Buffer)
 	json.NewEncoder(buffer).Encode(params)
@@ -124,9 +119,9 @@ func TestApiHandlerResponse(t *testing.T) {
 	}
 }
 
-func TestApiHandlerResponseWithHTTPMock(t *testing.T) {
+func TestDownloadHandlerResponseWithHTTPMock(t *testing.T) {
 	// Setup the server
-	handler := &APIHTTPHandler{}
+	handler := &DownloadHTTPHandler{}
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
@@ -141,7 +136,7 @@ func TestApiHandlerResponseWithHTTPMock(t *testing.T) {
 	var urls []string
 	urls = append(urls, ts.URL)
 
-	params := apiRequestParams{urls, "action"}
+	params := downloadRequestParams{urls}
 
 	buffer := new(bytes.Buffer)
 	json.NewEncoder(buffer).Encode(params)
@@ -168,5 +163,31 @@ func TestApiHandlerResponseWithHTTPMock(t *testing.T) {
 
 	if expected != actual {
 		t.Fatalf("Downloader API endpoint does not return pages")
+	}
+}
+
+// TODO: find out how I can mock the DBpedia call inside the sparql package
+func TestSparqlHandlerAvailability(t *testing.T) {
+	req, err := http.NewRequest("GET", "/api/sparql", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add "term" request parameter
+	// TODO: can this be done more elegantly?
+	q := req.URL.Query()
+	q.Add("term", "Bitcoin")
+	req.URL.RawQuery = q.Encode()
+
+	// Setup response recoder and handler
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(sparqlHandler)
+
+	// I can call ServeHttp because our handler satisfies http.Handler
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 }

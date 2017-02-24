@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/soeffing/nlp/downloader"
+	"github.com/soeffing/nlp/sparql"
 	"html/template"
 	"net/http"
 	"strings"
@@ -15,9 +16,12 @@ type Greeting struct {
 	Message string
 }
 
-type apiRequestParams struct {
-	Urls   []string
-	Action string
+type downloadRequestParams struct {
+	Urls []string
+}
+
+type sparqlRequestParams struct {
+	Term string
 }
 
 func staticHandler(w http.ResponseWriter, r *http.Request) {
@@ -29,36 +33,51 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, data)
 }
 
-func apiHandler(w http.ResponseWriter, r *http.Request) {
+func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	// set proper header
 	// TODO: use some sort of pre-hook to set those
 	w.Header().Set("Content-Type", "application/json")
 
-	action := strings.Split(r.URL.Path, "/")[2]
-	var params apiRequestParams
+	var params downloadRequestParams
 	err := json.NewDecoder(r.Body).Decode(&params)
+	defer r.Body.Close()
 	if err != nil {
 		panic(err)
 	}
 
-	defer r.Body.Close()
-	if action == "downloader" {
-		downloader := downloader.New()
-		downloader.Download(params.Urls)
+	downloader := downloader.New()
+	downloader.Download(params.Urls)
 
-		// Try out the json encoder
-		// json.NewEncoder(w).Encode(&pages)
-		jData, _ := json.Marshal(downloader.Pages)
-		w.Write(jData)
-	} else if action == "parallel_downloader" {
-		fmt.Println("To be implemented...")
+	// Try out the json encoder
+	// json.NewEncoder(w).Encode(&pages)
+	jData, _ := json.Marshal(downloader.Pages)
+	w.Write(jData)
+}
+
+func sparqlHandler(w http.ResponseWriter, r *http.Request) {
+	// set proper header
+	// TODO: use some sort of pre-hook to set those
+	w.Header().Set("Content-Type", "application/json")
+
+	term := r.URL.Query().Get("term")
+
+	data, err := sparql.GetLabelAbstractByTerm(term)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+
+	jData, _ := json.Marshal(data)
+	w.Write(jData)
+
 }
 
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/static/{greeting}", staticHandler)
-	r.HandleFunc("/api/{action}", apiHandler).Methods("POST")
+	r.HandleFunc("/api/download", downloadHandler).Methods("POST")
+	r.HandleFunc("/api/sparql", sparqlHandler).Methods("GET")
 
 	http.ListenAndServe(":8080", nil)
 }

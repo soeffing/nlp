@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/soeffing/nlp/downloader"
+	"github.com/soeffing/nlp/rake"
 	"github.com/soeffing/nlp/sparql"
 	"html/template"
 	"net/http"
@@ -70,7 +71,23 @@ func sparqlHandler(w http.ResponseWriter, r *http.Request) {
 
 	jData, _ := json.Marshal(data)
 	w.Write(jData)
+}
 
+func rakeHandler(w http.ResponseWriter, r *http.Request) {
+	// set proper header
+	// TODO: use some sort of pre-hook to set those
+	fmt.Println("enter rake handler")
+	w.Header().Set("Content-Type", "application/json")
+
+	text := r.URL.Query().Get("text")
+
+	fmt.Println(text)
+
+	candidateKeywords := rake.Run(text)
+	fmt.Println(candidateKeywords)
+
+	jData, _ := json.Marshal(candidateKeywords)
+	w.Write(jData)
 }
 
 func main() {
@@ -78,6 +95,7 @@ func main() {
 	r.HandleFunc("/static/{greeting}", staticHandler)
 	r.HandleFunc("/api/download", downloadHandler).Methods("POST")
 	r.HandleFunc("/api/sparql", sparqlHandler).Methods("GET")
+	r.HandleFunc("/api/rake", rakeHandler).Methods("GET")
 
 	http.ListenAndServe(":8080", nil)
 }

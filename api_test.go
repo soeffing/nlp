@@ -191,3 +191,27 @@ func TestSparqlHandlerAvailability(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 }
+
+func TestRakeHandlerAvailability(t *testing.T) {
+	req, err := http.NewRequest("GET", "/api/rake", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO: can this be done more elegantly?
+	q := req.URL.Query()
+	q.Add("text", "This is a tiny test. A test for rake, a keyword extraction technology.")
+	req.URL.RawQuery = q.Encode()
+
+	// Setup response recoder and handler
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(rakeHandler)
+
+	// I can call ServeHttp because our handler satisfies http.Handler
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+}

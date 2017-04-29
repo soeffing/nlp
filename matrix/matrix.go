@@ -4,7 +4,7 @@ package matrix
 import (
 	"bytes"
 	"fmt"
-	"github.com/ginuerzh/math3d/vector"
+	"github.com/soeffing/nlp/vector"
 )
 
 // Matrix is a bunch of vectors

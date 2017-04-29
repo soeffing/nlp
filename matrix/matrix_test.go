@@ -2,7 +2,7 @@
 package matrix
 
 import (
-	"github.com/ginuerzh/math3d/vector"
+	"github.com/soeffing/nlp/vector"
 	"testing"
 )
 
